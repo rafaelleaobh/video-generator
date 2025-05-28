@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Vídeos Sussurros Clínicos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            max-width: 800px;
+            margin-top: 50px;
+        }
+        .card {
+            background-color: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .card-header {
+            background-color: #9370DB;
+            color: #000;
+            font-weight: bold;
+            border-radius: 10px 10px 0 0;
+        }
+        .btn-primary {
+            background-color: #9370DB;
+            border-color: #9370DB;
+        }
+        .btn-primary:hover {
+            background-color: #8A2BE2;
+            border-color: #8A2BE2;
+        }
+        .form-control {
+            background-color: #2d2d2d;
+            border: 1px solid #444;
+            color: #e0e0e0;
+        }
+        .form-control:focus {
+            background-color: #333;
+            color: #fff;
+            border-color: #9370DB;
+            box-shadow: 0 0 0 0.25rem rgba(147, 112, 219, 0.25);
+        }
+        #status-container {
+            display: none;
+        }
+        .progress {
+            height: 25px;
+            background-color: #333;
+        }
+        .progress-bar {
+            background-color: #9370DB;
+        }
+        #result-container {
+            display: none;
+        }
+        .logo {
+            max-width: 150px;
+            margin-bottom: 20px;
+        }
+        .example-image {
+            max-width: 100%;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .loading-spinner {
+            width: 3rem;
+            height: 3rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="text-center mb-4">
+            <img src="logo.png" alt="Sussurros Clínicos Logo" class="logo">
+            <h1>Gerador de Vídeos Sussurros Clínicos</h1>
+            <p class="lead">Crie vídeos no estilo Sussurros Clínicos com apenas um prompt</p>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                Gerar Novo Vídeo
+            </div>
+            <div class="card-body">
+                <form id="video-form">
+                    <div class="mb-3">
+                        <label for="prompt" class="form-label">Descreva o tema do vídeo:</label>
+                        <textarea class="form-control" id="prompt" rows="3" placeholder="Ex: Explique a Síndrome de Lázaro em 60s no estilo Sussurros Clínicos" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="api-key" class="form-label">Chave da API OpenAI:</label>
+                        <input type="password" class="form-control" id="api-key" placeholder="sk-..." required>
+                        <div class="form-text text-muted">Sua chave é armazenada apenas localmente e nunca é salva em nossos servidores.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="pi-api-key" class="form-label">Chave da API PiAPI (opcional):</label>
+                        <input type="password" class="form-control" id="pi-api-key" placeholder="pi-...">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Opções de Geração:</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="high-quality" checked>
+                            <label class="form-check-label" for="high-quality">
+                                Alta qualidade (processamento mais lento)
+                            </label>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Gerar Vídeo</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="status-container" class="card mb-4">
+            <div class="card-header">
+                Status da Geração
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-3" id="loading-spinner">
+                    <div class="spinner-border loading-spinner text-light" role="status">
+                        <span class="visually-hidden">Carregando...</span>
+                    </div>
+                </div>
+                <h5 id="current-step">Iniciando processo...</h5>
+                <div class="progress mb-3">
+                    <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                </div>
+                <div id="step-details" class="text-muted"></div>
+            </div>
+        </div>
+
+        <div id="result-container" class="card">
+            <div class="card-header">
+                Vídeo Gerado
+            </div>
+            <div class="card-body">
+                <h5 id="video-title" class="card-title">Título do Vídeo</h5>
+                <div class="ratio ratio-16x9 mb-3">
+                    <video id="result-video" controls>
+                        Seu navegador não suporta o elemento de vídeo.
+                    </video>
+                </div>
+                <div class="d-grid gap-2">
+                    <a id="download-link" href="#" class="btn btn-primary" download>Baixar Vídeo</a>
+                    <a id="download-project" href="#" class="btn btn-outline-light" download>Baixar Projeto (para CapCut)</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('video-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Mostrar container de status
+            document.getElementById('status-container').style.display = 'block';
+            document.getElementById('result-container').style.display = 'none';
+            
+            // Obter valores do formulário
+            const prompt = document.getElementById('prompt').value;
+            const apiKey = document.getElementById('api-key').value;
+            const piApiKey = document.getElementById('pi-api-key').value;
+            const highQuality = document.getElementById('high-quality').checked;
+            
+            // Enviar para o backend
+            fetch('/generate-video', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    prompt: prompt,
+                    api_key: apiKey,
+                    pi_api_key: piApiKey,
+                    high_quality: highQuality
+                }),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Erro na requisição');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Atualizar UI com resultado
+                document.getElementById('status-container').style.display = 'none';
+                document.getElementById('result-container').style.display = 'block';
+                
+                document.getElementById('video-title').textContent = data.title;
+                document.getElementById('result-video').src = data.video_url;
+                document.getElementById('download-link').href = data.video_url;
+                document.getElementById('download-project').href = data.project_url;
+            })
+            .catch(error => {
+                console.error('Erro:', error);
+                document.getElementById('step-details').textContent = 'Ocorreu um erro: ' + error.message;
+            });
+            
+            // Simular atualizações de progresso (em produção, isso seria via WebSocket)
+            simulateProgress();
+        });
+        
+        function simulateProgress() {
+            const steps = [
+                {percent: 10, message: "Gerando roteiro...", details: "Criando estrutura narrativa e diálogos"},
+                {percent: 30, message: "Gerando imagens...", details: "Criando imagens para cada cena do roteiro"},
+                {percent: 50, message: "Gerando narração...", details: "Convertendo texto em áudio com voz apropriada"},
+                {percent: 70, message: "Montando vídeo...", details: "Combinando imagens e áudio"},
+                {percent: 90, message: "Finalizando...", details: "Aplicando efeitos e exportando"},
+                {percent: 100, message: "Concluído!", details: "Seu vídeo está pronto para download"}
+            ];
+            
+            let currentStep = 0;
+            
+            const interval = setInterval(() => {
+                if (currentStep >= steps.length) {
+                    clearInterval(interval);
+                    return;
+                }
+                
+                const step = steps[currentStep];
+                document.getElementById('current-step').textContent = step.message;
+                document.getElementById('step-details').textContent = step.details;
+                document.querySelector('.progress-bar').style.width = step.percent + '%';
+                document.querySelector('.progress-bar').textContent = step.percent + '%';
+                document.querySelector('.progress-bar').setAttribute('aria-valuenow', step.percent);
+                
+                currentStep++;
+                
+                // Em um cenário real, isso seria controlado pelo backend
+                if (currentStep === steps.length) {
+                    setTimeout(() => {
+                        // Aqui seria substituído pelo retorno real da API
+                        const mockData = {
+                            title: "Vídeo de exemplo - Aguardando implementação do backend",
+                            video_url: "#",
+                            project_url: "#"
+                        };
+                        
+                        document.getElementById('status-container').style.display = 'none';
+                        document.getElementById('result-container').style.display = 'block';
+                        
+                        document.getElementById('video-title').textContent = mockData.title;
+                        // Não definimos src do vídeo pois é apenas simulação
+                    }, 1000);
+                }
+            }, 1500);
+        }
+    </script>
+</body>
+</html>
